@@ -1,0 +1,23 @@
+def add_labels_to_excel(a):
+    labels = []
+    for filename in a['file']:
+        label = re.search("squeal|whinnie|softsnort|snort", filename)
+        if label:
+            label = label.group(0)
+            labels.append(label)
+    a['label'] = labels
+    return a
+# sorting into truth table
+def labels_to_Truth(df):
+    a = pd.DataFrame(df['label'].replace(['squeal','snort', 'softsnort','whinnie'], [0,0,0,1]))
+    b = pd.DataFrame(df['label'].replace(['squeal','snort', 'softsnort','whinnie'], [0,0,1,0]))
+    c = pd.DataFrame(df['label'].replace(['squeal','snort', 'softsnort','whinnie'], [0,1,0,0]))
+    d = pd.DataFrame(df['label'].replace(['squeal','snort', 'softsnort','whinnie'], [1,0,0,0])) #  replaces labels with truth table
+    
+    a = a.rename(columns = {'label':'whinnie'})
+    b = b.rename(columns = {'label':'softsnort'})
+    c = c.rename(columns = {'label':'snort'})
+    d = d.rename(columns = {'label':'squeal'}) # replaces labels of each column with appropiate call label
+    
+    df = pd.concat([df.drop(['file','label'], axis=1),a, b, c, d], axis=1) # adds all dataframes together
+    return df
