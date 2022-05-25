@@ -6,6 +6,7 @@ Created on Wed May 25 11:46:48 2022
 @author: barnabyemmens
 """
 
+
 import librosa
 import numpy as np
 import pandas as pd
@@ -13,10 +14,9 @@ from matplotlib import pyplot as plt
 import random
 import re
 
-
-def add_labels_to_excel():
+def add_labels_to_excel(data_path):
     """Returns dataframe of spreadsheet with labels"""
-    df = pd.read_excel('Zebras.Assumption.data_Bing_413 .xlsx', sheet_name=2)
+    df = pd.read_excel(data_path, sheet_name=2)
     labels = []
     for filename in df['file']:
         label = re.search("squeal|whinnie|softsnort|snort", filename)
@@ -174,3 +174,16 @@ def calc_melstft(augmented_samples):
         for j in range(n_samples):
             audio_mel[i,j,:,:] = np.abs(librosa.feature.melspectrogram(y=augmented_samples[i,j,:]))
     return audio_mel
+
+def spec_plot(stft_sample):
+    plt.imshow(librosa.amplitude_to_db(stft_sample),aspect='auto', origin='lower')
+    plt.xlabel("Time bins")
+    plt.ylabel('Frequency bins')
+    
+    
+    
+    
+    
+    
+    
+    
