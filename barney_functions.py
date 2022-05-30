@@ -212,9 +212,22 @@ def plot_sample(augmented_samples,sample_index):
     plt.legend()
     plt.show()
     
-def hsr_loader(folder_path,df,audio_size):
+def hsr_loader(folder_path,df):
+    
     n_samples = len(df['file'])
     hsr=22050*2
+    
+    filenames = os.listdir(folder_path)
+    audio_size = 0
+    n_samples = len(filenames)
+    print('Finding longest file (Worse Labels)')
+    for i in tqdm(range(n_samples)):
+        audio, _ = librosa.load(folder_path+filenames[i], sr=hsr)
+        if len(audio)>audio_size:
+            audio_size = len(audio)
+            longest_file = filenames[i]
+            index_longest = i
+    
     audio_size_hsr = int(audio_size*(hsr/22050))
     audio_files_hsr = np.zeros((n_samples,audio_size_hsr))
     for i in range(len(df['file'])):
@@ -224,7 +237,7 @@ def hsr_loader(folder_path,df,audio_size):
         if (len(audio_padded) % 2) != 0:
             audio_padded = np.append(audio_padded,[0])
         audio_files_hsr[i,:] = audio_padded
-    return audio_files_hsr
+    return audio_files_hsr, index_longest
 
 def lsr_loader(folder_path,df,audio_size):
     n_samples = len(df['file'])
