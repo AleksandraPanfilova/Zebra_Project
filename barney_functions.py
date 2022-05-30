@@ -225,7 +225,6 @@ def hsr_loader(folder_path,df):
         audio, _ = librosa.load(folder_path+filenames[i], sr=hsr)
         if len(audio)>audio_size:
             audio_size = len(audio)
-            longest_file = filenames[i]
             index_longest = i
     
     audio_size_hsr = int(audio_size*(hsr/22050))
@@ -237,7 +236,7 @@ def hsr_loader(folder_path,df):
         if (len(audio_padded) % 2) != 0:
             audio_padded = np.append(audio_padded,[0])
         audio_files_hsr[i,:] = audio_padded
-    return audio_files_hsr, index_longest
+    return audio_files_hsr, index_longest, audio_size_hsr
 
 def lsr_loader(folder_path,df,audio_size):
     n_samples = len(df['file'])
@@ -299,27 +298,45 @@ def rand_slices(set_sizes,audio):
             sets_expanded.append(SETS[i][j])
     return SETS,sets_expanded,n_sets
 
-def pad_from_list(sample_list):
-    audio_size = 0
+def pad_from_list(sample_list,audio_size):
+    # audio_size = 0
     n_samples = len(sample_list)
     
-    for j in range(n_samples):
-        if len(sample_list[j]) > audio_size:
-            audio_size = len(sample_list[j])
+    # for j in range(n_samples):
+    #     if len(sample_list[j]) > audio_size:
+    #         audio_size = len(sample_list[j])
             
     audio_files = np.zeros((n_samples,audio_size))
     
     for i in tqdm(range(n_samples)):
-        padding_amount = int((audio_size - len(sample_list[i]))/2)
-        audio_padded = np.pad(sample_list[i],padding_amount)
-        if len(audio_padded) == audio_size:
-            audio_files[i,:] = audio_padded
-        else:
-            diff = audio_size - len(audio_padded)
-            audio_padded = np.append(audio_padded,np.zeros(diff))
-            audio_files[i,:] = audio_padded
+        if len(sample_list[i]) < audio_size:    
+            padding_amount = int((audio_size - len(sample_list[i]))/2)
+            audio_padded = np.pad(sample_list[i],padding_amount)  
+            if len(audio_padded) == audio_size:
+                audio_files[i,:] = audio_padded
+            else:
+                diff = audio_size - len(audio_padded)
+                audio_padded = np.append(audio_padded,np.zeros(diff))
+                audio_files[i,:] = audio_padded
     return audio_files
     
+def add_nzebra(zebra_audio,zebra_labels,nzebra_audio,n_zebra_labels):
+    all_audio = np.concatenate((zebra_audio,nzebra_audio), axis=0)
+    all_labels = np.append(zebra_labels,n_zebra_labels)
+    return all_audio, all_labels
+
+def gen_nzebra(nzebra_path,audio_size):
+    audio_nzebra, _ = librosa.load(nzebra_path)
+    set_sizes = np.random.randint(100,1000,2)
+    _, nzebra_audio, n_sets = rand_slices(set_sizes,audio_nzebra)
+    print("Padding")
+    nzebra_audio_pad = pad_from_list(nzebra_audio,audio_size)
+    labels_nzebra = np.array(['not_zebra']*len(nzebra_audio_pad))
+    return nzebra_audio_pad, labels_nzebra
+
+def save_nzebra(nzebra_audio):
+    for i in range(nzebra_audio.shape[0]):
+        sf.write('nzebra/nzebera_sample_' + str(i)+'.wav', nzebra_audio[i], 44100, 'PCM_24')
     
     
     
