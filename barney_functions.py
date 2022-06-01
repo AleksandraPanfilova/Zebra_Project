@@ -54,8 +54,7 @@ def add_labels_to_excel(data_path):
     """Returns dataframe of spreadsheet with labels"""
     df = pd.read_excel(data_path, sheet_name=2)
     labels = []
-    print("Adding labels")
-    for filename in tqdm(df['file']):
+    for filename in df['file']:
         label = re.search("squeal|whinnie|softsnort|snort", filename)
         if label:
             label = label.group(0)
@@ -201,15 +200,47 @@ def augment_audio_faster(audio_files):
         
     return data_for_NN
 
+def augment_audio_faster_smaller(audio_files):
+    time_shift = 1.1 # fractional ranges
+    vol_shift = 1.1 
+    n_samples = audio_files.shape[0]
+    #width_no_buffer = audio_files.shape[1]
+    width_buffer = len(buffer(audio_files[0,:],time_shift))
+    buffer_shape = (n_samples,width_buffer)
+    
+    audio_files_norm = np.zeros(audio_files.shape) # assume beyond this point (unlabelled)
+    audio_files_buff = np.zeros(buffer_shape)
+    audio_files_shift1 = np.zeros(buffer_shape)
+    #audio_files_shift2 = np.zeros(buffer_shape)
+    audio_files_loud = np.zeros(buffer_shape) # random intensity shift (whole file)
+    audio_files_noisy = np.zeros(buffer_shape)
+
+    
+    noise = np.random.normal(0,0.01,width_buffer)
+    
+    print("Augmenting "+str(n_samples) +" samples")
+    for i in tqdm(range(n_samples)):
+        audio_files_norm[i,:] = librosa.util.normalize(audio_files[i,:]) 
+        audio_files_buff[i,:]  = buffer(audio_files_norm[i,:],time_shift)
+        audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],time_shift)
+        audio_files_loud[i,:] = louder(audio_files_buff[i,:],vol_shift)
+        audio_files_noisy[i,:] =  audio_files_buff[i,:] + noise
+
+    n_augments = 4
+        
+    data_for_NN = np.zeros((n_augments,n_samples,width_buffer))
+    data_for_NN[0,:,:] = audio_files_buff # All normalised 1st
+    data_for_NN[1,:,:] = audio_files_shift1
+    data_for_NN[2,:,:] = audio_files_noisy
+    data_for_NN[3,:,:] = audio_files_loud
+        
+    return data_for_NN
+
 def plot_sample(augmented_samples,sample_index):
-    plt.plot(augmented_samples[0,sample_index,:],label='buff')
-    plt.plot(augmented_samples[1,sample_index,:],label='shift1')
-    plt.plot(augmented_samples[2,sample_index,:],label='shift2')
-    plt.plot(augmented_samples[3,sample_index,:],label='noisy')
-    plt.plot(augmented_samples[4,sample_index,:],label='loud')
+    for i in range(augmented_samples.shape[0]):
+        plt.plot(augmented_samples[i,sample_index,:])
     plt.xlabel('Time')
     plt.ylabel('Amplitude')
-    plt.legend()
     plt.show()
     
 def hsr_loader(folder_path,df):
@@ -220,7 +251,7 @@ def hsr_loader(folder_path,df):
     filenames = os.listdir(folder_path)
     audio_size = 0
     n_samples = len(filenames)
-    print('Finding longest file (Worse Labels)')
+    print('Finding longest')
     for i in tqdm(range(n_samples)):
         audio, _ = librosa.load(folder_path+filenames[i], sr=hsr)
         if len(audio)>audio_size:
@@ -229,7 +260,8 @@ def hsr_loader(folder_path,df):
     
     audio_size_hsr = int(audio_size*(hsr/22050))
     audio_files_hsr = np.zeros((n_samples,audio_size_hsr))
-    for i in range(len(df['file'])):
+    print('Loading files')
+    for i in tqdm(range(len(df['file']))):
         audio, _ = librosa.load((folder_path+df['file'][i]), sr=hsr)
         padding_amount = int((audio_size_hsr - len(audio))/2)
         audio_padded = np.pad(audio,padding_amount)
