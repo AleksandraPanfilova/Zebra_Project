@@ -435,16 +435,15 @@ def check_class_complete(kfold,X,y):
         elif len(np.unique(y_test)) != len(np.unique(y)):
             print("FOLD "+str(fold_no)+": Class missing from fold validation data.")
         fold_no += 1
-    print("OK")
+    print("ALL CLASSES PRESENT")
     
 def check_class_complete_gen(y_train, y_test,y):
-    fold_no = 1
     if len(np.unique(y_train)) != len(np.unique(y)):
         print("Class missing from train data")
     elif len(np.unique(y_test)) != len(np.unique(y)):
         print("Class missing from validation data.")
-    fold_no += 1
-    print("OK")
+    else:
+        print("OK")
     
 def standardizeimg(img, mu, sigma):
     return (img-mu)/(sigma).astype(np.float32)
