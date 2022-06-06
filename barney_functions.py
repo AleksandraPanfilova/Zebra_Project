@@ -527,8 +527,6 @@ def balancer(audio_files,labels):
             balanced = np.concatenate((balanced, split_calls[i]), axis=0)
             balanced_labels = np.append(balanced_labels,split_labels[i])
     print('----------------------')
-    print("DONE")
-    print('----------------------')
     print("Final class proportions:")
     print(balance_stats(balanced,balanced_labels))
     return balanced, balanced_labels
