@@ -472,6 +472,28 @@ def format_for_CNN(X_train,X_test,y_train,y_test):
     y_test = onehot_v.to_numpy()
     return X_train,X_test,y_train,y_test,img_rows,img_cols
 
+def balance_stats(audio_files,labels):
+    classes = np.unique(labels)
+    split_calls = []
+    for call in classes:
+        call_idx = np.where(labels==call)
+        calls = audio_files[call_idx]
+        split_calls.append(calls)
+    class_rel_pop = np.zeros(len(classes))
+    multiplier = np.zeros(len(classes))
+    new_multiplier = np.zeros(len(classes))
+    balanced = []
+    for i in range(len(classes)):
+        class_rel_pop[i]=len(split_calls[i])/len(audio_files)
+        multiplier[i] = (1/class_rel_pop[i]) - len(classes)
+    biggest = np.min(multiplier)
+    for j in range(len(multiplier)):
+        if multiplier[j] > 0:
+            new_multiplier[j] = int(np.abs(multiplier[j]/biggest))
+        else:
+            new_multiplier[j] = 1
+    return np.around(class_rel_pop,3)
+
 def balancer(audio_files,labels):
     print("Initial class proportions:")
     print(balance_stats(audio_files,labels))
