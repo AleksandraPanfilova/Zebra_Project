@@ -471,3 +471,42 @@ def format_for_CNN(X_train,X_test,y_train,y_test):
     onehot_v = pd.get_dummies(y_test)
     y_test = onehot_v.to_numpy()
     return X_train,X_test,y_train,y_test,img_rows,img_cols
+
+def balancer(audio_files,labels):
+    print("Initial class proportions:")
+    print(balance_stats(audio_files,labels))
+    classes = np.unique(labels)
+    split_calls = []
+    split_labels = []
+    for i in range(len(classes)):
+        call_idx = np.where(labels==classes[i])
+        calls = audio_files[call_idx]
+        split_calls.append(calls)
+        split_labels.append([classes[i]]*len(split_calls[i]))
+    class_rel_pop = np.zeros(len(classes))
+    multiplier = np.zeros(len(classes))
+    new_multiplier = np.zeros(len(classes))
+    for i in range(len(classes)):
+        class_rel_pop[i]=len(split_calls[i])/len(audio_files)
+        multiplier[i] = (1/class_rel_pop[i]) - len(classes)
+    biggest = np.min(multiplier)
+    for j in range(len(multiplier)):
+        if multiplier[j] > 0:
+            new_multiplier[j] = int(np.abs(multiplier[j]/biggest))
+        else:
+            new_multiplier[j] = 1
+    balanced = audio_files
+    balanced_labels = np.array(labels)
+    for i in range(len(classes)):
+        print('----------------------')
+        print("Balancing:",classes[i])
+        print("Multiplier:",new_multiplier[i])
+        for k in range(int(new_multiplier[i]-1)):
+            balanced = np.concatenate((balanced, split_calls[i]), axis=0)
+            balanced_labels = np.append(balanced_labels,split_labels[i])
+    print('----------------------')
+    print("DONE")
+    print('----------------------')
+    print("Final class proportions:")
+    print(balance_stats(balanced,balanced_labels))
+    return balanced, balanced_labels
