@@ -7,6 +7,7 @@ Created on Wed May 25 11:46:48 2022
 """
 
 import librosa
+import librosa.display
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -201,6 +202,10 @@ def augment_audio_faster(audio_files):
         
     return data_for_NN
 
+def fast_noise(audio, noisiness, width_buffer):
+    noise = np.random.normal(0,noisiness,width_buffer)
+    return audio + noise
+
 def augment_audio_faster_smaller(audio_files):
     time_shift = 1.1 # fractional ranges
     vol_shift = 1.1 
@@ -225,7 +230,7 @@ def augment_audio_faster_smaller(audio_files):
         audio_files_buff[i,:]  = buffer(audio_files_norm[i,:],time_shift)
         audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],time_shift)
         audio_files_loud[i,:] = louder(audio_files_buff[i,:],vol_shift)
-        audio_files_noisy[i,:] =  audio_files_buff[i,:] + noise
+        audio_files_noisy[i,:] =  fast_noise(audio_files_buff[i,:], 0.001, width_buffer)
 
     n_augments = 4
         
@@ -310,10 +315,10 @@ def calc_melstft(augmented_samples):
             audio_mel[i,j,:,:] = np.abs(librosa.feature.melspectrogram(y=augmented_samples[i,j,:]))
     return audio_mel
 
-def spec_plot(stft_sample):
-    plt.imshow(librosa.amplitude_to_db(stft_sample),aspect='auto', origin='lower')
-    plt.xlabel("Time bins")
-    plt.ylabel('Frequency bins')
+def spec_plot(spec):
+    librosa.display.specshow(librosa.amplitude_to_db(spec),x_axis="time",y_axis="linear")
+    plt.colorbar()
+    plt.show()
     
 def listen(sample):
     sf.write('test_audio.wav', sample, 44100, 'PCM_24')
