@@ -86,7 +86,73 @@ def gen_audio_array(folder_path,df):
             audio_padded = np.append(audio_padded,[0])
         audio_files[i,:] = audio_padded
     return audio_files, audio_size, index_longest
-    
+
+def msr_log(folder_path,df):
+    """ Loads and pads audio files to be of uniform shape"""
+    audio_size = 0
+    n_samples = len(df['file'])
+    print('Finding longest file (Better Labels)')
+    for i in tqdm(range(n_samples)):
+        audio, _ = librosa.load(folder_path+df['file'][i])
+        if len(audio)>audio_size:
+            audio_size = len(audio)
+            index_longest = i
+            
+    audio_files = np.zeros((n_samples,audio_size))
+
+    print('Loading files')
+    for i in tqdm(range(len(df['file']))):
+        audio, _ = librosa.load(folder_path+df['file'][i])
+        padding_amount = int((audio_size - len(audio))/2)
+        audio_padded = np.pad(audio,padding_amount)
+        if (len(audio_padded) % 2) == 0:
+            audio_padded = np.append(audio_padded,[0])
+        audio_files[i,:] = audio_padded
+    audio_files = librosa.amplitude_to_db(audio_files)
+    return audio_files, audio_size, index_longest
+
+def length_finder(folder_path,df,percentile):
+    """ Loads and pads audio files to be of uniform shape"""
+    n_samples = len(df['file'])
+    labels = df['label']
+    lengths = np.zeros((n_samples))
+    idxs = np.arange(0,n_samples,1)
+    audio_list = []
+    print('Finding file lengths')
+    for i in tqdm(range(n_samples)):
+        audio, _ = librosa.load(folder_path+df['file'][i])
+        audio_list.append(audio)
+        lengths[i] = len(audio)
+    max_length = max(lengths)
+    ninetieth_perc = np.percentile(lengths,percentile)
+    audio_list_short = []
+    labels_short = []
+    lengths_short = []
+    removed_audio = []
+    removed_labels = []
+    idxs_short = []
+    print("Reducing to "+str(percentile)+"th percentile")
+    for i in tqdm(range(n_samples)):
+        if len(audio_list[i])<ninetieth_perc:
+            audio_list_short.append(audio_list[i])
+            labels_short.append(labels[i])
+            lengths_short.append(len(audio_list[i]))
+            idxs_short.append(idxs[i])
+        else:
+            removed_audio.append(audio_list[i])
+            removed_labels.append(labels[i])            
+    print("Data size reduction: ",np.around(ninetieth_perc/max_length,3))
+    print("Removed classes: ",np.unique(removed_labels))
+    print("New max length: ",max(lengths_short))
+    print("Number of samples removed:",len(removed_labels))
+    plt.scatter(idxs,lengths,label="Removed")
+    plt.scatter(idxs_short,lengths_short,label=str(percentile)+"th percentile")
+    plt.xlabel("Index")
+    plt.ylabel("Length")
+    plt.legend()
+    plt.show()
+    return int(max_length),audio_list_short,labels_short
+
 def buffer(audio,max_frac_shift):
     shift_max = int(audio.shape[0]*max_frac_shift)
     buffer_array = np.zeros(shift_max)
@@ -227,6 +293,7 @@ def augment_audio_faster_smaller(audio_files):
     print("Augmenting "+str(n_samples) +" samples")
     for i in tqdm(range(n_samples)):
         audio_files_norm[i,:] = librosa.util.normalize(audio_files[i,:]) 
+        #audio_files_norm[i,:] = audio_files[i,:]
         audio_files_buff[i,:]  = buffer(audio_files_norm[i,:],time_shift)
         audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],time_shift)
         audio_files_loud[i,:] = louder(audio_files_buff[i,:],vol_shift)
@@ -316,7 +383,7 @@ def calc_melstft(augmented_samples):
     return audio_mel
 
 def spec_plot(spec):
-    librosa.display.specshow(librosa.amplitude_to_db(spec),x_axis="time",y_axis="linear")
+    librosa.display.specshow(spec,x_axis="time",y_axis="linear")
     plt.colorbar()
     plt.show()
     
@@ -534,3 +601,27 @@ def balancer(audio_files,labels):
     print("Final class proportions:")
     print(balance_stats(balanced,balanced_labels))
     return balanced, balanced_labels
+
+def pad_and_db(audio_list,audio_size):
+    n_samples = len(audio_list)
+    audio_files = np.zeros((n_samples,audio_size))
+    for i in tqdm(range(n_samples)):
+        audio = librosa.amplitude_to_db(audio_list[i])
+        padding_amount = int((audio_size - len(audio))/2)
+        audio_padded = np.pad(audio,padding_amount)
+        if (len(audio_padded) % 2) == 0:
+            audio_padded = np.append(audio_padded,[0])
+        audio_files[i,:] = audio_padded
+    return audio_files
+
+def pad(audio_list,audio_size):
+    n_samples = len(audio_list)
+    audio_files = np.zeros((n_samples,audio_size))
+    for i in tqdm(range(n_samples)):
+        audio = audio_list[i]
+        padding_amount = int((audio_size - len(audio))/2)
+        audio_padded = np.pad(audio,padding_amount)
+        if (len(audio_padded) % 2) == 0:
+            audio_padded = np.append(audio_padded,[0])
+        audio_files[i,:] = audio_padded
+    return audio_files
