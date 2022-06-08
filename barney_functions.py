@@ -120,10 +120,9 @@ def length_finder(folder_path,df,percentile):
     audio_list = []
     print('Finding file lengths')
     for i in tqdm(range(n_samples)):
-        audio, _ = librosa.load(folder_path+df['file'][i])
+        audio, _ = librosa.load(folder_path+df['file'][i],sr=22050)
         audio_list.append(audio)
         lengths[i] = len(audio)
-    max_length = max(lengths)
     ninetieth_perc = np.percentile(lengths,percentile)
     audio_list_short = []
     labels_short = []
@@ -140,7 +139,9 @@ def length_finder(folder_path,df,percentile):
             idxs_short.append(idxs[i])
         else:
             removed_audio.append(audio_list[i])
-            removed_labels.append(labels[i])            
+            removed_labels.append(labels[i])      
+    max_length = int(max(lengths_short))
+    idx_longest = np.argmax(np.array(lengths_short))
     print("Data size reduction: ",np.around(ninetieth_perc/max_length,3))
     print("Removed classes: ",np.unique(removed_labels))
     print("New max length: ",max(lengths_short))
@@ -151,26 +152,9 @@ def length_finder(folder_path,df,percentile):
     plt.ylabel("Length")
     plt.legend()
     plt.show()
-    return int(max_length),audio_list_short,labels_short
-
-def buffer(audio,max_frac_shift):
-    shift_max = int(audio.shape[0]*max_frac_shift)
-    buffer_array = np.zeros(shift_max)
-    audio_buff = np.append(audio,buffer_array, axis=0)
-    audio_buff = np.append(buffer_array,audio_buff, axis=0)
-    return audio_buff
-
-#def shifter(audio,max_frac_shift):
-#    shift_max = int(audio.shape[0]*max_frac_shift)/2
-#    audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
-#    return audio_shift
+    return max_length,audio_list_short,labels_short, idx_longest
 
 
-
-def louder(audio, max_frac_louder):
-    max_change = int(max_frac_louder*100)
-    random_change = random.randint(100-max_change,max_change)/100
-    return audio*random_change
 
 # def louder(audio, max_frac_louder):
 #     random_change = random.randint()
@@ -233,7 +217,7 @@ def augment_audio(audio_files):
     return data_for_NN
 
 def augment_audio_faster(audio_files):
-    time_shift = 1 # fractional ranges
+    time_shift = 0.1 # fractional ranges
     vol_shift = 1.1 
     n_samples = audio_files.shape[0]
     #width_no_buffer = audio_files.shape[1]
@@ -274,16 +258,37 @@ def fast_noise(audio, noisiness, width_buffer):
     noise = np.random.normal(0,noisiness,width_buffer)
     return audio + noise
 
-def shifter(audio,width_buffer,max_frac_shift):
-    shift_max = int(width_buffer*max_frac_shift/2)
+def shifter(audio,width_buffer,max_frac_shift,width_no_buffer):
+    shift_max = int(audio.shape[0]*max_frac_shift)
     audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
     return audio_shift
 
+#def buffer(audio,max_frac_shift):
+#    shift_max = int(audio.shape[0]*max_frac_shift/4)
+#    buffer_array = np.zeros(shift_max)
+##    audio_buff = np.append(audio,buffer_array, axis=0)
+#    audio_buff = np.append(buffer_array,audio_buff, axis=0)
+#    return audio_buff
+
+def buffer(audio,max_frac_shift):
+    shift_max = int(audio.shape[0]*max_frac_shift)
+    audio_buff = np.pad(audio,shift_max)
+    return audio_buff
+
+#def shifter(audio,max_frac_shift):
+#    shift_max = int(audio.shape[0]*max_frac_shift)/2
+#    audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
+#    return audio_shift
+
+def louder(audio, max_frac_louder):
+    random_change = random.randint(95,105)/100
+    return audio*random_change
+
 def augment_audio_faster_smaller(audio_files):
-    time_shift = 1 # fractional ranges
+    time_shift = 0.1 # fractional ranges
     vol_shift = 1.1 
     n_samples = audio_files.shape[0]
-    #width_no_buffer = audio_files.shape[1]
+    width_no_buffer = audio_files.shape[1]
     width_buffer = len(buffer(audio_files[0,:],time_shift))
     buffer_shape = (n_samples,width_buffer)
     
@@ -302,7 +307,7 @@ def augment_audio_faster_smaller(audio_files):
         audio_files_norm[i,:] = librosa.util.normalize(audio_files[i,:]) 
         #audio_files_norm[i,:] = audio_files[i,:]
         audio_files_buff[i,:]  = buffer(audio_files_norm[i,:],time_shift)
-        audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],width_buffer,time_shift)
+        audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],width_buffer,time_shift,width_no_buffer)
         audio_files_loud[i,:] = louder(audio_files_buff[i,:],vol_shift)
         audio_files_noisy[i,:] =  fast_noise(audio_files_buff[i,:], 0.001, width_buffer)
 
@@ -321,6 +326,7 @@ def plot_sample(augmented_samples,sample_index):
         plt.plot(augmented_samples[i,sample_index,:])
     plt.xlabel('Time')
     plt.ylabel('Amplitude')
+    plt.title("Augmented Waveforms: Sample "+str(sample_index))
     plt.show()
     
 def hsr_loader(folder_path,df):
@@ -384,8 +390,9 @@ def calc_melstft(augmented_samples):
     sftfs_0 = test_shape[0]
     sftfs_1 = test_shape[1]
     audio_mel = np.zeros((n_augments,n_samples,sftfs_0,sftfs_1))
-    for i in tqdm(range(n_augments)):
-        for j in range(n_samples):
+    for i in range(n_augments):
+        print("Augmentation ",(i+1),"/",n_augments)
+        for j in tqdm(range(n_samples)):
             audio_mel[i,j,:,:] = np.abs(librosa.feature.melspectrogram(y=augmented_samples[i,j,:]))
     return audio_mel
 
@@ -396,6 +403,12 @@ def spec_plot(spec):
     
 def listen(sample):
     sf.write('test_audio.wav', sample, 44100, 'PCM_24')
+    playsound('test_audio.wav')
+    os.remove("test_audio.wav")
+    
+def listen_mel(sample):
+    waveform = librosa.feature.inverse.mel_to_audio(sample,sr=22050)
+    sf.write('test_audio.wav', waveform, 22050, 'PCM_24')
     playsound('test_audio.wav')
     os.remove("test_audio.wav")
     
@@ -441,7 +454,6 @@ def gen_nzebra(nzebra_path,audio_size):
     audio_nzebra, _ = librosa.load(nzebra_path)
     set_sizes = np.random.randint(100,1000,2)
     _, nzebra_audio, n_sets = rand_slices(set_sizes,audio_nzebra)
-    print("Padding")
     nzebra_audio_pad = pad_from_list(nzebra_audio,audio_size)
     labels_nzebra = np.array(['not_zebra']*len(nzebra_audio_pad))
     return nzebra_audio_pad, labels_nzebra
@@ -624,6 +636,7 @@ def pad_and_db(audio_list,audio_size):
 def pad(audio_list,audio_size):
     n_samples = len(audio_list)
     audio_files = np.zeros((n_samples,audio_size))
+    print("Padding")
     for i in tqdm(range(n_samples)):
         audio = audio_list[i]
         padding_amount = int((audio_size - len(audio))/2)
