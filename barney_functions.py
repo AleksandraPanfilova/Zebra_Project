@@ -160,10 +160,12 @@ def buffer(audio,max_frac_shift):
     audio_buff = np.append(buffer_array,audio_buff, axis=0)
     return audio_buff
 
-def shifter(audio,max_frac_shift):
-    shift_max = int(audio.shape[0]*max_frac_shift)
-    audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
-    return audio_shift
+#def shifter(audio,max_frac_shift):
+#    shift_max = int(audio.shape[0]*max_frac_shift)/2
+#    audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
+#    return audio_shift
+
+
 
 def louder(audio, max_frac_louder):
     max_change = int(max_frac_louder*100)
@@ -231,7 +233,7 @@ def augment_audio(audio_files):
     return data_for_NN
 
 def augment_audio_faster(audio_files):
-    time_shift = 1.1 # fractional ranges
+    time_shift = 1 # fractional ranges
     vol_shift = 1.1 
     n_samples = audio_files.shape[0]
     #width_no_buffer = audio_files.shape[1]
@@ -272,8 +274,13 @@ def fast_noise(audio, noisiness, width_buffer):
     noise = np.random.normal(0,noisiness,width_buffer)
     return audio + noise
 
+def shifter(audio,width_buffer,max_frac_shift):
+    shift_max = int(width_buffer*max_frac_shift/2)
+    audio_shift = np.roll(audio, random.randint(-shift_max,shift_max))
+    return audio_shift
+
 def augment_audio_faster_smaller(audio_files):
-    time_shift = 1.1 # fractional ranges
+    time_shift = 1 # fractional ranges
     vol_shift = 1.1 
     n_samples = audio_files.shape[0]
     #width_no_buffer = audio_files.shape[1]
@@ -295,7 +302,7 @@ def augment_audio_faster_smaller(audio_files):
         audio_files_norm[i,:] = librosa.util.normalize(audio_files[i,:]) 
         #audio_files_norm[i,:] = audio_files[i,:]
         audio_files_buff[i,:]  = buffer(audio_files_norm[i,:],time_shift)
-        audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],time_shift)
+        audio_files_shift1[i,:] = shifter(audio_files_buff[i,:],width_buffer,time_shift)
         audio_files_loud[i,:] = louder(audio_files_buff[i,:],vol_shift)
         audio_files_noisy[i,:] =  fast_noise(audio_files_buff[i,:], 0.001, width_buffer)
 
