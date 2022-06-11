@@ -636,12 +636,74 @@ def pad_and_db(audio_list,audio_size):
 def pad(audio_list,audio_size):
     n_samples = len(audio_list)
     audio_files = np.zeros((n_samples,audio_size))
-    print("Padding")
-    for i in tqdm(range(n_samples)):
+    for i in range(n_samples):
         audio = audio_list[i]
         padding_amount = int((audio_size - len(audio))/2)
         audio_padded = np.pad(audio,padding_amount)
-        if (len(audio_padded) % 2) == 0:
+        if len(audio_padded) == audio_size:
+            audio_files[i,:] = audio_padded
+        else:
             audio_padded = np.append(audio_padded,[0])
-        audio_files[i,:] = audio_padded
+            audio_files[i,:] = audio_padded
+    return audio_files
+
+def length_finder_bad_labels(folder_path,percentile):
+    """ Loads and pads audio files to be of uniform shape"""
+    filenames = os.listdir(folder_path)
+    labels = gen_labels(filenames)
+    n_samples = len(filenames)
+    lengths = np.zeros((n_samples))
+    idxs = np.arange(0,n_samples,1)
+    audio_list = []
+    print('Finding file lengths')
+    for i in tqdm(range(n_samples)):
+        audio, _ = librosa.load(folder_path+filenames[i],sr=22050)
+        audio_list.append(audio)
+        lengths[i] = len(audio)
+    ninetieth_perc = np.percentile(lengths,percentile)
+    audio_list_short = []
+    labels_short = []
+    lengths_short = []
+    removed_audio = []
+    removed_labels = []
+    idxs_short = []
+    print("Reducing to "+str(percentile)+"th percentile")
+    for i in tqdm(range(n_samples)):
+        if len(audio_list[i])<ninetieth_perc:
+            audio_list_short.append(audio_list[i])
+            labels_short.append(labels[i])
+            lengths_short.append(len(audio_list[i]))
+            idxs_short.append(idxs[i])
+        else:
+            removed_audio.append(audio_list[i])
+            removed_labels.append(labels[i])      
+    max_length = int(max(lengths_short))
+    idx_longest = np.argmax(np.array(lengths_short))
+    print("Data size reduction: ",np.around(ninetieth_perc/max_length,3))
+    print("Removed classes: ",np.unique(removed_labels))
+    print("New max length: ",max(lengths_short))
+    print("Number of samples removed:",len(removed_labels))
+    plt.scatter(idxs,lengths,label="Removed")
+    plt.scatter(idxs_short,lengths_short,label=str(percentile)+"th percentile")
+    plt.xlabel("Index")
+    plt.ylabel("Length")
+    plt.legend()
+    plt.show()
+    return max_length,audio_list_short,labels_short, idx_longest
+
+def pad_bad_lables(audio_list,audio_size):
+    n_samples = len(audio_list)
+    audio_files = np.zeros((n_samples,audio_size))
+    for i in range(n_samples):
+        audio = audio_list[i]
+        if len(audio)>audio_size:
+            diff = int((audio_size-len(audio))/2)
+            audio = audio[diff:-diff]
+        padding_amount = int((audio_size - len(audio))/2)
+        audio_padded = np.pad(audio,padding_amount)
+        if len(audio_padded) == audio_size:
+            audio_files[i,:] = audio_padded
+        else:
+            audio_padded = np.append(audio_padded,[0])
+            audio_files[i,:] = audio_padded
     return audio_files
