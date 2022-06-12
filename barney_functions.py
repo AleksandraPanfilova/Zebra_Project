@@ -327,6 +327,7 @@ def plot_sample(augmented_samples,sample_index):
     plt.xlabel('Time')
     plt.ylabel('Amplitude')
     plt.title("Augmented Waveforms: Sample "+str(sample_index))
+    plt.savefig("plot_sample",dpi=300)
     plt.show()
     
 def hsr_loader(folder_path,df):
