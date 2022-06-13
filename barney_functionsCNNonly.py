@@ -6,6 +6,7 @@ Created on Wed May 25 11:46:48 2022
 @author: barnabyemmens
 """
 
+import itertools
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -13,7 +14,6 @@ import random
 import re
 import os
 # from tqdm import tqdm 
-# import itertools
 
 def plot_confusion_matrix(cm,
                           target_names,

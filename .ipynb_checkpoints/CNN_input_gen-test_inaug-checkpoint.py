@@ -30,18 +30,19 @@ audio_size,audio_list_short,labels_short,_ = length_finder(audio_path,df,97)
 zebra_labels = pd.Series(data=labels_short, index=[np.arange(len(labels_short))])
 audio_files = pad(audio_list_short,audio_size)
 
-train_images, TEST_images, train_y, TEST_y = train_test_split(audio_files, zebra_labels, test_size=0.2, random_state=42)
+train_images, TEST_images, train_y, TEST_y = train_test_split(audio_files, zebra_labels, test_size=0.25, random_state=42)
 
 print(TEST_images.shape)
 
 balanced, balanced_labels = balancer(train_images,train_y)
 augmented_audio = augment_audio_faster_smaller(balanced)
+augmented_TEST = augment_audio_faster_smaller(TEST_images)
 print(augmented_audio.shape)
 
 print("Augmented dataset size: ",augmented_audio.nbytes/(1e9), 'GB')
 
 mels = calc_melstft(augmented_audio)
-TEST_mels = calc_melstft_inaug(TEST_images)
+TEST_mels = calc_melstft_inaug(augmented_TEST[0])
 mels_norm_db = librosa.util.normalize(librosa.power_to_db(mels))
 TEST_mels_norm_db = librosa.util.normalize(librosa.power_to_db(TEST_mels))
 print(mels_norm_db.shape)

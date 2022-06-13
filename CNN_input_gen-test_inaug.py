@@ -36,12 +36,13 @@ print(TEST_images.shape)
 
 balanced, balanced_labels = balancer(train_images,train_y)
 augmented_audio = augment_audio_faster_smaller(balanced)
+augmented_TEST = augment_audio_faster_smaller(TEST_images)
 print(augmented_audio.shape)
 
 print("Augmented dataset size: ",augmented_audio.nbytes/(1e9), 'GB')
 
 mels = calc_melstft(augmented_audio)
-TEST_mels = calc_melstft_inaug(TEST_images)
+TEST_mels = calc_melstft_inaug(augmented_TEST[0])
 mels_norm_db = librosa.util.normalize(librosa.power_to_db(mels))
 TEST_mels_norm_db = librosa.util.normalize(librosa.power_to_db(TEST_mels))
 print(mels_norm_db.shape)
